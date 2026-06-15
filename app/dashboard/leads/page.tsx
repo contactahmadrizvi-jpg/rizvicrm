@@ -18,6 +18,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/Input";
+import { useAuth } from "@/context/AuthContext";
+
+function getSubmitterName(email?: string) {
+  if (!email) return "System";
+  const prefix = email.split("@")[0];
+  return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+}
 import {
   Plus,
   Pencil,
@@ -60,6 +67,8 @@ function generateId() {
 }
 
 export default function LeadsPage() {
+  const { appUser } = useAuth();
+  const [selectedSubmitter, setSelectedSubmitter] = useState<string>("All");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<LeadStatus>("Initial Email");
@@ -83,7 +92,14 @@ export default function LeadsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", company: "", status: "Initial Email" as LeadStatus });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    company: "",
+    status: "Initial Email" as LeadStatus,
+    serviceType: "" as "AI Receptionist" | "App Development" | "",
+    phoneNumber: "",
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Close lead modal
@@ -111,14 +127,21 @@ export default function LeadsPage() {
 
   const openAdd = () => {
     setEditingLead(null);
-    setForm({ name: "", email: "", company: "", status: "Initial Email" });
+    setForm({ name: "", email: "", company: "", status: "Initial Email", serviceType: "", phoneNumber: "" });
     setErrors({});
     setIsModalOpen(true);
   };
 
   const openEdit = (lead: Lead) => {
     setEditingLead(lead);
-    setForm({ name: lead.name, email: lead.email, company: lead.company, status: lead.status });
+    setForm({
+      name: lead.name,
+      email: lead.email,
+      company: lead.company,
+      status: lead.status,
+      serviceType: lead.serviceType || "",
+      phoneNumber: lead.phoneNumber || "",
+    });
     setErrors({});
     setIsModalOpen(true);
   };
@@ -129,6 +152,10 @@ export default function LeadsPage() {
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email";
     if (!form.company.trim()) e.company = "Company is required";
+    if (!form.serviceType) e.serviceType = "Service type is required";
+    if (form.serviceType === "AI Receptionist" && !form.phoneNumber.trim()) {
+      e.phoneNumber = "Phone number is required for AI Receptionist";
+    }
     return e;
   };
 
@@ -144,20 +171,29 @@ export default function LeadsPage() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
+    const payload = {
+      name: form.name,
+      email: form.email,
+      company: form.company,
+      status: form.status,
+      serviceType: form.serviceType ? form.serviceType : undefined,
+      phoneNumber: form.serviceType === "AI Receptionist" ? form.phoneNumber : undefined,
+      submittedBy: editingLead ? (editingLead.submittedBy || appUser?.email || "Unknown") : (appUser?.email || "Unknown"),
+    };
     try {
       if (editingLead) {
         if (form.status === "Closed" && editingLead.status !== "Closed") {
-          triggerClose({ ...editingLead, ...form });
+          triggerClose({ ...editingLead, ...payload });
           return;
         }
-        await updateDoc(doc(db, "leads", editingLead.id), { ...form, updatedAt: serverTimestamp() });
+        await updateDoc(doc(db, "leads", editingLead.id), { ...payload, updatedAt: serverTimestamp() });
       } else {
         if (form.status === "Closed") {
-          const ref = await addDoc(collection(db, "leads"), { ...form, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-          triggerClose({ id: ref.id, ...form, createdAt: new Date(), updatedAt: new Date() });
+          const ref = await addDoc(collection(db, "leads"), { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+          triggerClose({ id: ref.id, ...payload, createdAt: new Date(), updatedAt: new Date() });
           return;
         }
-        await addDoc(collection(db, "leads"), { ...form, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        await addDoc(collection(db, "leads"), { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
       }
       setIsModalOpen(false);
     } finally {
@@ -178,6 +214,8 @@ export default function LeadsPage() {
       await setDoc(doc(db, "clients", closingLead.id), {
         leadId: closingLead.id, name: closingLead.name, email: closingLead.email,
         company: closingLead.company, status: "Closed", projectValue: pv, upfrontPaid: up || 0,
+        serviceType: closingLead.serviceType || "",
+        phoneNumber: closingLead.phoneNumber || "",
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
       setCloseModal(false);
@@ -219,9 +257,22 @@ export default function LeadsPage() {
     }
   };
 
-  const filteredLeads = leads.filter((l) => l.status === activeTab);
+  const filteredLeads = leads.filter(
+    (l) =>
+      l.status === activeTab &&
+      (selectedSubmitter === "All" || (l.submittedBy || "Unknown") === selectedSubmitter)
+  );
+
+  const allSubmitters = Array.from(
+    new Set(leads.map((l) => l.submittedBy || "Unknown"))
+  ).filter(Boolean);
+
   const counts = STAGES.reduce((acc, t) => {
-    acc[t] = leads.filter((l) => l.status === t).length;
+    acc[t] = leads.filter(
+      (l) =>
+        l.status === t &&
+        (selectedSubmitter === "All" || (l.submittedBy || "Unknown") === selectedSubmitter)
+    ).length;
     return acc;
   }, {} as Record<LeadStatus, number>);
 
@@ -269,6 +320,36 @@ export default function LeadsPage() {
           </button>
         ))}
       </div>
+
+      {/* Submitter Categories Filter */}
+      {allSubmitters.length > 0 && (
+        <div className="flex items-center gap-2 mb-5 flex-wrap bg-slate-50 border border-slate-200/60 p-2 rounded-2xl">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">By Submitter:</span>
+          <button
+            onClick={() => setSelectedSubmitter("All")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+              selectedSubmitter === "All"
+                ? "bg-white text-slate-800 border-slate-200 shadow-sm font-bold"
+                : "text-slate-500 border-transparent hover:text-slate-800"
+            }`}
+          >
+            All
+          </button>
+          {allSubmitters.map((sub) => (
+            <button
+              key={sub}
+              onClick={() => setSelectedSubmitter(sub)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                selectedSubmitter === sub
+                  ? "bg-white text-slate-800 border-slate-200 shadow-sm font-bold"
+                  : "text-slate-500 border-transparent hover:text-slate-800"
+              }`}
+            >
+              {getSubmitterName(sub)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Leads List */}
       <Card className="p-0 overflow-hidden">
@@ -325,6 +406,30 @@ export default function LeadsPage() {
                         onCopy={copyToClipboard}
                         color="violet"
                       />
+                      {/* Service Type */}
+                      {lead.serviceType && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold border ${
+                          lead.serviceType === "AI Receptionist"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        }`}>
+                          {lead.serviceType}
+                        </span>
+                      )}
+                      {/* Phone Number */}
+                      {lead.serviceType === "AI Receptionist" && lead.phoneNumber && (
+                        <CopyChip
+                          value={lead.phoneNumber}
+                          uid={`${lead.id}:phoneNumber`}
+                          copiedKey={copiedKey}
+                          onCopy={copyToClipboard}
+                          color="slate"
+                        />
+                      )}
+                      {/* Submitted By */}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium border bg-slate-100/30 text-slate-500 border-slate-200">
+                        Added by: {getSubmitterName(lead.submittedBy)}
+                      </span>
                     </div>
 
                     {/* Closed amounts */}
@@ -460,6 +565,31 @@ export default function LeadsPage() {
           <Input label="Email" type="email" placeholder="john@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} disabled={saving} />
           <Input label="Company" placeholder="Acme Corp" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} error={errors.company} disabled={saving} />
           <Select label="Stage" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LeadStatus })} options={STAGES.map((t) => ({ value: t, label: t }))} disabled={saving} />
+          
+          <Select
+            label="Service Type"
+            value={form.serviceType}
+            onChange={(e) => setForm({ ...form, serviceType: e.target.value as "AI Receptionist" | "App Development" | "" })}
+            options={[
+              { value: "", label: "Select Service" },
+              { value: "AI Receptionist", label: "AI Receptionist" },
+              { value: "App Development", label: "App Development" },
+            ]}
+            error={errors.serviceType}
+            disabled={saving}
+          />
+
+          {form.serviceType === "AI Receptionist" && (
+            <Input
+              label="Phone Number"
+              placeholder="+1 (555) 019-2834"
+              value={form.phoneNumber}
+              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+              error={errors.phoneNumber}
+              disabled={saving}
+            />
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1" disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} loading={saving} className="flex-1">{editingLead ? "Save" : "Add Lead"}</Button>

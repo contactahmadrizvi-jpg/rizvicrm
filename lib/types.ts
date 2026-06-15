@@ -36,6 +36,9 @@ export interface Lead {
   projectValue?: number;
   upfrontPaid?: number;
   followUps?: FollowUpNote[];
+  serviceType?: "AI Receptionist" | "App Development";
+  phoneNumber?: string;
+  submittedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
