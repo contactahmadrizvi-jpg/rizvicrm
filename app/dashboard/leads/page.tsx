@@ -171,15 +171,19 @@ export default function LeadsPage() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
-    const payload = {
+    const payload: any = {
       name: form.name,
       email: form.email,
       company: form.company,
       status: form.status,
-      serviceType: form.serviceType ? form.serviceType : undefined,
-      phoneNumber: form.serviceType === "AI Receptionist" ? form.phoneNumber : undefined,
       submittedBy: editingLead ? (editingLead.submittedBy || appUser?.email || "Unknown") : (appUser?.email || "Unknown"),
     };
+    if (form.serviceType) {
+      payload.serviceType = form.serviceType;
+    }
+    if (form.serviceType === "AI Receptionist" && form.phoneNumber) {
+      payload.phoneNumber = form.phoneNumber;
+    }
     try {
       if (editingLead) {
         if (form.status === "Closed" && editingLead.status !== "Closed") {
