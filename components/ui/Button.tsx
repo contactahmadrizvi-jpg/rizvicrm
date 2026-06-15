@@ -11,10 +11,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantMap = {
-  primary: "bg-indigo-600 hover:bg-indigo-500 text-white border-transparent",
-  secondary: "bg-white/10 hover:bg-white/20 text-white border-white/10",
-  danger: "bg-red-600/80 hover:bg-red-500 text-white border-transparent",
-  ghost: "bg-transparent hover:bg-white/10 text-slate-400 hover:text-white border-transparent",
+  primary: "bg-indigo-600 hover:bg-indigo-500 text-white border-transparent shadow-sm shadow-indigo-600/10",
+  secondary: "bg-slate-100 hover:bg-slate-200/80 text-slate-800 border-slate-200/60",
+  danger: "bg-rose-600 hover:bg-rose-500 text-white border-transparent shadow-sm shadow-rose-600/10",
+  ghost: "bg-transparent hover:bg-slate-50 text-slate-500 hover:text-slate-800 border-transparent",
 };
 
 const sizeMap = {

@@ -1,6 +1,31 @@
-export type LeadStatus = "Meeting" | "Closed" | "Rejected";
+export type LeadStatus = "Initial Email" | "Follow Up" | "Meeting" | "Closed" | "Rejected";
 export type EmployeeRole = "Sales Closer" | "Cold Caller";
 export type ProjectType = "App Development" | "AI Receptionist" | "Other";
+export type PaymentStatus = "Unpaid" | "Partial" | "Paid";
+export type UserRole = "admin" | "member";
+
+export interface AppUser {
+  uid: string;
+  email: string;
+  role: UserRole;
+  createdAt: Date;
+}
+
+
+export interface CommissionPayment {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  amount: number;
+  note?: string;
+  createdAt: Date;
+}
+
+export interface FollowUpNote {
+  id: string;
+  note: string;
+  date: string; // ISO date string
+}
 
 export interface Lead {
   id: string;
@@ -10,6 +35,7 @@ export interface Lead {
   status: LeadStatus;
   projectValue?: number;
   upfrontPaid?: number;
+  followUps?: FollowUpNote[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +63,19 @@ export interface Project {
   features: string[];
   budget: number;
   upfrontPaid: number;
+  totalPaid: number;
+  remainingPayment: number;
+  paymentStatus: PaymentStatus;
+  startDate?: string;   // ISO date string "YYYY-MM-DD"
+  deadline?: string;    // ISO date string "YYYY-MM-DD"
+  // Commission fields
+  coldCallerId?: string;
+  coldCallerName?: string;
+  coldCallerCommission?: number;
+  salesCloserId?: string;
+  salesCloserName?: string;
+  salesCloserCommission?: number;
+  totalCommission?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,7 +84,29 @@ export interface Commission {
   id: string;
   name: string;
   role: EmployeeRole;
-  totalCommission: number;
+  commissionRate: number; // percentage e.g. 10 = 10%
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CommissionPayment {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeRole: EmployeeRole;
+  projectId: string;
+  projectName: string;
+  commissionAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: PaymentStatus;
+  paymentHistory: PaymentRecord[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PaymentRecord {
+  amount: number;
+  date: Date;
+  note?: string;
 }

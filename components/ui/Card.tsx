@@ -12,10 +12,10 @@ export function Card({ children, className = "", glass = false }: CardProps) {
   return (
     <div
       className={`
-        rounded-2xl border border-white/10 p-6 shadow-xl
+        rounded-2xl border border-slate-200/60 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_20px_-4px_rgba(0,0,0,0.01)]
         ${glass
-          ? "bg-white/5 backdrop-blur-md"
-          : "bg-[#111827]"
+          ? "bg-white/80 backdrop-blur-md"
+          : "bg-white"
         }
         ${className}
       `}
@@ -31,16 +31,26 @@ interface KPICardProps {
   subtitle?: string;
   subtitleValue?: string | number;
   icon?: ReactNode;
-  color?: "indigo" | "green" | "red" | "yellow" | "blue";
+  color?: "indigo" | "green" | "red" | "yellow" | "blue" | "orange";
   loading?: boolean;
 }
 
 const colorMap = {
-  indigo: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-  green: "text-green-400 bg-green-500/10 border-green-500/20",
-  red: "text-red-400 bg-red-500/10 border-red-500/20",
-  yellow: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-  blue: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  indigo: "text-indigo-600 bg-indigo-50 border-indigo-100",
+  green: "text-emerald-600 bg-emerald-50 border-emerald-100",
+  red: "text-rose-600 bg-rose-50 border-rose-100",
+  yellow: "text-amber-600 bg-amber-50 border-amber-100",
+  blue: "text-blue-600 bg-blue-50 border-blue-100",
+  orange: "text-orange-600 bg-orange-50 border-orange-100",
+};
+
+const textColorMap = {
+  indigo: "text-indigo-600",
+  green: "text-emerald-600",
+  red: "text-rose-600",
+  yellow: "text-amber-600",
+  blue: "text-blue-600",
+  orange: "text-orange-600",
 };
 
 export function KPICard({
@@ -54,7 +64,7 @@ export function KPICard({
 }: KPICardProps) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-xl">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_20px_-4px_rgba(0,0,0,0.01)]">
         <div className="skeleton h-4 w-24 mb-4" />
         <div className="skeleton h-8 w-32 mb-2" />
         <div className="skeleton h-4 w-20" />
@@ -63,18 +73,18 @@ export function KPICard({
   }
 
   return (
-    <div className={`rounded-2xl border p-6 shadow-xl ${colorMap[color]}`}>
+    <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_20px_-4px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-200">
       <div className="flex items-start justify-between mb-4">
-        <p className="text-sm font-medium text-slate-400">{title}</p>
+        <p className="text-sm font-medium text-slate-500">{title}</p>
         {icon && (
-          <div className={`p-2 rounded-lg ${colorMap[color]}`}>{icon}</div>
+          <div className={`p-2 rounded-xl border ${colorMap[color]}`}>{icon}</div>
         )}
       </div>
-      <p className="text-3xl font-bold text-white mb-1">{value}</p>
+      <p className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">{value}</p>
       {subtitle && subtitleValue !== undefined && (
         <div className="flex items-center gap-2 mt-2">
           <span className="text-xs text-slate-400">{subtitle}</span>
-          <span className={`text-sm font-semibold ${colorMap[color].split(" ")[0]}`}>
+          <span className={`text-sm font-semibold ${textColorMap[color]}`}>
             {subtitleValue}
           </span>
         </div>

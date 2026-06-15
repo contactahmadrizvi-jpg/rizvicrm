@@ -33,18 +33,18 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       {/* Modal */}
       <div
-        className={`relative w-full ${sizeMap[size]} bg-[#111827] border border-white/10 rounded-2xl shadow-2xl z-10 max-h-[90vh] overflow-y-auto`}
+        className={`relative w-full ${sizeMap[size]} bg-white border border-slate-200/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-10 max-h-[90vh] overflow-y-auto`}
       >
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
           >
             <X size={18} />
           </button>
