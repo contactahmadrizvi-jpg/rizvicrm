@@ -9,22 +9,28 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import {
-  Plus, Copy, Check, Pencil, Trash2, Mail, MailOpen, ChevronRight,
+  Plus, Copy, Check, Pencil, Trash2, Mail, MailOpen, ChevronRight, X,
 } from "lucide-react";
 
 type EmailType = "initial" | "followup";
 
+interface EmailVariant {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+}
+
 interface EmailTemplate {
   id: string;
   label: string;
-  subject: string;
-  body: string;
   type: EmailType;
+  variants: EmailVariant[];
   order: number;
   createdAt: Date;
 }
 
-interface CopiedState { [id: string]: boolean }
+interface CopiedState { [key: string]: boolean }
 
 const TYPE_LABELS: Record<EmailType, string> = {
   initial:  "Initial Outreach",
@@ -36,6 +42,18 @@ const TYPE_COLORS: Record<EmailType, { dot: string; badge: string; icon: string 
   followup: { dot: "bg-[#1d4ed8]", badge: "bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]",  icon: "text-[#1d4ed8]" },
 };
 
+let variantCounter = 0;
+function makeVariant(partial?: Partial<EmailVariant>): EmailVariant {
+  variantCounter += 1;
+  return {
+    id: `new-${Date.now()}-${variantCounter}`,
+    name: partial?.name ?? "",
+    subject: partial?.subject ?? "",
+    body: partial?.body ?? "",
+    ...partial,
+  };
+}
+
 export default function EmailCopyPage() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +61,11 @@ export default function EmailCopyPage() {
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<CopiedState>({});
-  const [form, setForm] = useState({ label: "", subject: "", body: "", type: "initial" as EmailType });
+  const [form, setForm] = useState({
+    label: "",
+    type: "initial" as EmailType,
+    variants: [makeVariant()],
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [activeType, setActiveType] = useState<EmailType | "all">("all");
 
@@ -51,9 +73,23 @@ export default function EmailCopyPage() {
     const unsub = onSnapshot(collection(db, "emailTemplates"), (snap) => {
       const data = snap.docs.map((d) => {
         const raw = d.data();
-        return { id: d.id, label: raw.label ?? "", subject: raw.subject ?? "", body: raw.body ?? "",
-          type: raw.type ?? "initial", order: raw.order ?? 0,
-          createdAt: raw.createdAt?.toDate?.() ?? new Date() } as EmailTemplate;
+        const variants = Array.isArray(raw.variants)
+          ? raw.variants.map((v: Record<string, string>) => ({
+              id: v.id ?? "",
+              name: v.name ?? "",
+              subject: v.subject ?? "",
+              body: v.body ?? "",
+            }))
+          : [];
+        // Backwards compatibility: if old template has single subject/body, convert to one variant
+        if (variants.length === 0 && (raw.subject || raw.body)) {
+          variants.push(makeVariant({ name: raw.label ?? "", subject: raw.subject ?? "", body: raw.body ?? "" }));
+        }
+        return {
+          id: d.id, label: raw.label ?? "", type: raw.type ?? "initial",
+          variants, order: raw.order ?? 0,
+          createdAt: raw.createdAt?.toDate?.() ?? new Date(),
+        } as EmailTemplate;
       });
       data.sort((a, b) => a.order - b.order || a.createdAt.getTime() - b.createdAt.getTime());
       setTemplates(data);
@@ -64,14 +100,18 @@ export default function EmailCopyPage() {
 
   const openAdd = (type?: EmailType) => {
     setEditing(null);
-    setForm({ label: "", subject: "", body: "", type: type ?? "initial" });
+    setForm({ label: "", type: type ?? "initial", variants: [makeVariant()] });
     setErrors({});
     setIsModalOpen(true);
   };
 
   const openEdit = (t: EmailTemplate) => {
     setEditing(t);
-    setForm({ label: t.label, subject: t.subject, body: t.body, type: t.type });
+    setForm({
+      label: t.label,
+      type: t.type,
+      variants: t.variants.length > 0 ? t.variants.map((v) => ({ ...v })) : [makeVariant()],
+    });
     setErrors({});
     setIsModalOpen(true);
   };
@@ -79,8 +119,10 @@ export default function EmailCopyPage() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.label.trim()) e.label = "Name is required";
-    if (!form.subject.trim()) e.subject = "Subject line is required";
-    if (!form.body.trim()) e.body = "Email body is required";
+    form.variants.forEach((v, i) => {
+      if (!v.subject.trim()) e[`variant-${i}-subject`] = "Subject line is required";
+      if (!v.body.trim()) e[`variant-${i}-body`] = "Email body is required";
+    });
     return e;
   };
 
@@ -89,8 +131,18 @@ export default function EmailCopyPage() {
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
     try {
-      const payload = { label: form.label.trim(), subject: form.subject.trim(),
-        body: form.body.trim(), type: form.type, updatedAt: serverTimestamp() };
+      const variants = form.variants.map((v) => ({
+        id: v.id,
+        name: v.name.trim(),
+        subject: v.subject.trim(),
+        body: v.body.trim(),
+      }));
+      const payload = {
+        label: form.label.trim(),
+        type: form.type,
+        variants,
+        updatedAt: serverTimestamp(),
+      };
       if (editing) {
         await updateDoc(doc(db, "emailTemplates", editing.id), payload);
       } else {
@@ -103,15 +155,23 @@ export default function EmailCopyPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this email template?")) return;
+    if (!confirm("Delete this email template and all its variants?")) return;
     await deleteDoc(doc(db, "emailTemplates", id));
   };
 
-  const handleCopy = (t: EmailTemplate) => {
-    const text = `Subject: ${t.subject}\n\n${t.body}`;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied((prev) => ({ ...prev, [t.id]: true }));
-      setTimeout(() => setCopied((prev) => ({ ...prev, [t.id]: false })), 2000);
+  const handleCopySubject = (templateId: string, variantId: string, subject: string) => {
+    const key = `${templateId}-${variantId}-subject`;
+    navigator.clipboard.writeText(subject).then(() => {
+      setCopied((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 2000);
+    });
+  };
+
+  const handleCopyBody = (templateId: string, variantId: string, body: string) => {
+    const key = `${templateId}-${variantId}-body`;
+    navigator.clipboard.writeText(body).then(() => {
+      setCopied((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 2000);
     });
   };
 
@@ -184,7 +244,7 @@ export default function EmailCopyPage() {
                     </button>
                   </div>
                   <EmailSequence templates={initials} onEdit={openEdit} onDelete={handleDelete}
-                    onCopy={handleCopy} copied={copied} />
+                    copied={copied} onCopySubject={handleCopySubject} onCopyBody={handleCopyBody} />
                 </section>
               )}
 
@@ -201,7 +261,8 @@ export default function EmailCopyPage() {
                     </button>
                   </div>
                   <EmailSequence templates={followups} onEdit={openEdit} onDelete={handleDelete}
-                    onCopy={handleCopy} copied={copied} showArrows />
+                    copied={copied} onCopySubject={handleCopySubject} onCopyBody={handleCopyBody}
+                    showArrows />
                 </section>
               )}
             </div>
@@ -210,7 +271,7 @@ export default function EmailCopyPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filtered.map((t) => (
                 <EmailCard key={t.id} template={t} onEdit={openEdit} onDelete={handleDelete}
-                  onCopy={handleCopy} copied={!!copied[t.id]} />
+                  copied={copied} onCopySubject={handleCopySubject} onCopyBody={handleCopyBody} />
               ))}
             </div>
           )}
@@ -219,8 +280,8 @@ export default function EmailCopyPage() {
 
       {/* Add / Edit Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
-        title={editing ? "Edit Template" : "New Email Template"} size="lg">
-        <div className="space-y-4">
+        title={editing ? "Edit Template" : "New Email Template"} size="xl">
+        <div className="space-y-5">
           {/* Type selector */}
           <div>
             <p className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase mb-2">Type</p>
@@ -243,24 +304,100 @@ export default function EmailCopyPage() {
             value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })}
             error={errors.label} disabled={saving} />
 
-          <Input label="Subject Line" placeholder="e.g. Quick question about your business"
-            value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
-            error={errors.subject} disabled={saving} />
+          {/* Email Variants */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase">
+                Email Variants
+              </p>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, variants: [...form.variants, makeVariant()] })}
+                className="flex items-center gap-1.5 text-xs text-[#1d4ed8] hover:text-[#1a1a2e] font-medium transition-colors"
+              >
+                <Plus size={12} /> Add Variant
+              </button>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase">Email Body</label>
-            <textarea
-              rows={10}
-              placeholder={"Hi [Name],\n\nI came across your business and wanted to reach out...\n\nBest,\n[Your Name]"}
-              value={form.body}
-              onChange={(e) => setForm({ ...form, body: e.target.value })}
-              disabled={saving}
-              className={`w-full bg-white border rounded-lg px-3 py-2.5 text-[#111110] placeholder-[#b0b0aa] text-sm font-mono
-                focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/10 focus:border-[#1a1a2e] transition-all resize-none
-                disabled:bg-[#f4f4f2] ${errors.body ? "border-[#c0392b]" : "border-[#e8e8e4]"}`}
-            />
-            {errors.body && <p className="text-xs text-[#c0392b] font-medium">{errors.body}</p>}
-            <p className="text-xs text-[#b0b0aa]">Use [Name], [Company], [Your Name] as placeholders.</p>
+            <div className="space-y-4">
+              {form.variants.map((variant, i) => (
+                <div key={variant.id}
+                  className="relative border border-[#e8e8e4] rounded-lg p-4 bg-[#fafaf9] space-y-3">
+                  {/* Variant header */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#858580]">
+                      Variant {i + 1}
+                    </span>
+                    {form.variants.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            variants: form.variants.filter((_, idx) => idx !== i),
+                          })
+                        }
+                        className="flex items-center gap-1 text-xs text-[#c0392b] hover:text-[#a5311b] font-medium transition-colors"
+                      >
+                        <X size={12} /> Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <Input
+                    label="Variant Name (optional)"
+                    placeholder="e.g. Friendly, Professional, Direct"
+                    value={variant.name}
+                    onChange={(e) => {
+                      const updated = [...form.variants];
+                      updated[i] = { ...updated[i], name: e.target.value };
+                      setForm({ ...form, variants: updated });
+                    }}
+                    disabled={saving}
+                  />
+
+                  <Input
+                    label="Subject Line"
+                    placeholder="e.g. Quick question about your business"
+                    value={variant.subject}
+                    onChange={(e) => {
+                      const updated = [...form.variants];
+                      updated[i] = { ...updated[i], subject: e.target.value };
+                      setForm({ ...form, variants: updated });
+                    }}
+                    error={errors[`variant-${i}-subject`]}
+                    disabled={saving}
+                  />
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase">
+                      Email Body
+                    </label>
+                    <textarea
+                      rows={8}
+                      placeholder={"Hi [Name],\n\nI came across your business and wanted to reach out...\n\nBest,\n[Your Name]"}
+                      value={variant.body}
+                      onChange={(e) => {
+                        const updated = [...form.variants];
+                        updated[i] = { ...updated[i], body: e.target.value };
+                        setForm({ ...form, variants: updated });
+                      }}
+                      disabled={saving}
+                      className={`w-full bg-white border rounded-lg px-3 py-2.5 text-[#111110] placeholder-[#b0b0aa] text-sm font-mono
+                        focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/10 focus:border-[#1a1a2e] transition-all resize-none
+                        disabled:bg-[#f4f4f2] ${errors[`variant-${i}-body`] ? "border-[#c0392b]" : "border-[#e8e8e4]"}`}
+                    />
+                    {errors[`variant-${i}-body`] && (
+                      <p className="text-xs text-[#c0392b] font-medium">{errors[`variant-${i}-body`]}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-[#b0b0aa] mt-2">
+              Use [Name], [Company], [Your Name] as placeholders in any variant.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-1">
@@ -277,14 +414,16 @@ export default function EmailCopyPage() {
 
 /* ─── Email sequence with flow arrows ─────────────────────────────────── */
 function EmailSequence({
-  templates, onEdit, onDelete, onCopy, copied, showArrows = false,
+  templates, onEdit, onDelete, copied, showArrows = false,
+  onCopySubject, onCopyBody,
 }: {
   templates: EmailTemplate[];
   onEdit: (t: EmailTemplate) => void;
   onDelete: (id: string) => void;
-  onCopy: (t: EmailTemplate) => void;
   copied: CopiedState;
   showArrows?: boolean;
+  onCopySubject: (templateId: string, variantId: string, subject: string) => void;
+  onCopyBody: (templateId: string, variantId: string, body: string) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -299,26 +438,65 @@ function EmailSequence({
             </div>
           )}
           <EmailCard template={t} onEdit={onEdit} onDelete={onDelete}
-            onCopy={onCopy} copied={!!copied[t.id]} index={showArrows ? i + 1 : undefined} />
+            copied={copied} onCopySubject={onCopySubject} onCopyBody={onCopyBody}
+            index={showArrows ? i + 1 : undefined} />
         </div>
       ))}
     </div>
   );
 }
 
+/* ─── Copy button helper ──────────────────────────────────────────────── */
+function CopyButton({
+  label, copiedKey, copiedState, onClick, size = "xs",
+}: {
+  label: string;
+  copiedKey: string;
+  copiedState: CopiedState;
+  onClick: () => void;
+  size?: "xs" | "sm";
+}) {
+  const isCopied = !!copiedState[copiedKey];
+  const sizeClasses = size === "xs"
+    ? "px-2 py-1 rounded-md text-[10px] gap-1"
+    : "px-2.5 py-1.5 rounded-md text-xs gap-1.5";
+  const iconSize = size === "xs" ? 10 : 12;
+
+  return (
+    <button onClick={onClick}
+      className={`inline-flex items-center font-medium transition-all duration-150 border ${
+        sizeClasses
+      } ${
+        isCopied
+          ? "bg-[#edf7f3] border-[#a7f3d0] text-[#1a7f5a]"
+          : "bg-white border-[#e8e8e4] text-[#858580] hover:border-[#d0d0cc] hover:text-[#4a4a48] hover:bg-[#f4f4f2]"
+      }`}>
+      {isCopied ? <Check size={iconSize} /> : <Copy size={iconSize} />}
+      {isCopied ? "Copied" : label}
+    </button>
+  );
+}
+
 /* ─── Individual email card ────────────────────────────────────────────── */
 function EmailCard({
-  template, onEdit, onDelete, onCopy, copied, index,
+  template, onEdit, onDelete, copied, index,
+  onCopySubject, onCopyBody,
 }: {
   template: EmailTemplate;
   onEdit: (t: EmailTemplate) => void;
   onDelete: (id: string) => void;
-  onCopy: (t: EmailTemplate) => void;
-  copied: boolean;
+  copied: CopiedState;
   index?: number;
+  onCopySubject: (templateId: string, variantId: string, subject: string) => void;
+  onCopyBody: (templateId: string, variantId: string, body: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const colors = TYPE_COLORS[template.type];
+  const hasMultipleVariants = template.variants.length > 1;
+
+  const toggleExpand = (vId: string) => {
+    setExpanded((prev) => ({ ...prev, [vId]: !prev[vId] }));
+  };
 
   return (
     <div className="bg-white border border-[#e8e8e4] rounded-xl shadow-card hover:shadow-lift transition-shadow duration-200">
@@ -341,23 +519,14 @@ function EmailCard({
             {template.label && (
               <span className="text-xs text-[#858580] font-medium">{template.label}</span>
             )}
+            <span className="text-[10px] text-[#b0b0aa] font-medium">
+              {template.variants.length} variant{template.variants.length !== 1 ? "s" : ""}
+            </span>
           </div>
-          <p className="text-sm font-semibold text-[#111110] tracking-tight leading-snug">
-            {template.subject}
-          </p>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => onCopy(template)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all duration-150 ${
-              copied
-                ? "bg-[#edf7f3] border-[#a7f3d0] text-[#1a7f5a]"
-                : "bg-white border-[#e8e8e4] text-[#4a4a48] hover:border-[#d0d0cc] hover:bg-[#f4f4f2]"
-            }`}>
-            {copied ? <Check size={12} /> : <Copy size={12} />}
-            {copied ? "Copied" : "Copy"}
-          </button>
           <button onClick={() => onEdit(template)}
             className="p-1.5 rounded-md hover:bg-[#f4f4f2] text-[#b0b0aa] hover:text-[#4a4a48] transition-colors">
             <Pencil size={13} />
@@ -372,19 +541,67 @@ function EmailCard({
       {/* Divider */}
       <div className="border-t border-[#f4f4f2] mx-5" />
 
-      {/* Body preview / expand */}
-      <div className="px-5 py-4">
-        <p className={`text-sm text-[#4a4a48] font-mono leading-relaxed whitespace-pre-wrap ${
-          expanded ? "" : "line-clamp-3"
-        }`}>
-          {template.body}
-        </p>
-        {template.body.split("\n").length > 3 && (
-          <button onClick={() => setExpanded(!expanded)}
-            className="mt-2 text-xs text-[#858580] hover:text-[#111110] font-medium transition-colors">
-            {expanded ? "Show less ↑" : "Show full email ↓"}
-          </button>
-        )}
+      {/* Variants */}
+      <div className="px-5 py-4 space-y-4">
+        {template.variants.map((variant, vIdx) => {
+          const variantLabel = variant.name || (hasMultipleVariants ? `Variant ${vIdx + 1}` : "");
+          const isExpanded = expanded[variant.id] ?? false;
+
+          return (
+            <div key={variant.id} className={hasMultipleVariants ? "border border-[#f4f4f2] rounded-lg p-3 bg-[#fafaf9]" : ""}>
+              {/* Variant name */}
+              {variantLabel && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-semibold text-[#858580] uppercase tracking-wider">{variantLabel}</span>
+                </div>
+              )}
+
+              {/* Subject line */}
+              <div className="flex items-start gap-2 mb-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-[#858580] mb-0.5">Subject</p>
+                  <p className="text-sm font-semibold text-[#111110] tracking-tight leading-snug">
+                    {variant.subject}
+                  </p>
+                </div>
+                <CopyButton
+                  label="Copy"
+                  copiedKey={`${template.id}-${variant.id}-subject`}
+                  copiedState={copied}
+                  onClick={() => onCopySubject(template.id, variant.id, variant.subject)}
+                  size="xs"
+                />
+              </div>
+
+              {/* Body */}
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-[#858580] mb-0.5">Body</p>
+                  <p className={`text-sm text-[#4a4a48] font-mono leading-relaxed whitespace-pre-wrap ${
+                    isExpanded ? "" : "line-clamp-3"
+                  }`}>
+                    {variant.body}
+                  </p>
+                  {variant.body.split("\n").length > 3 && (
+                    <button onClick={() => toggleExpand(variant.id)}
+                      className="mt-1.5 text-[10px] text-[#858580] hover:text-[#111110] font-medium transition-colors">
+                      {isExpanded ? "Show less ↑" : "Show full email ↓"}
+                    </button>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  <CopyButton
+                    label="Copy"
+                    copiedKey={`${template.id}-${variant.id}-body`}
+                    copiedState={copied}
+                    onClick={() => onCopyBody(template.id, variant.id, variant.body)}
+                    size="xs"
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
