@@ -1,13 +1,19 @@
 export type LeadStatus = "Initial Email" | "Follow Up" | "Meeting" | "Closed" | "Rejected";
-export type EmployeeRole = "Sales Closer" | "Cold Caller";
+export type EmployeeRole = "Sales Closer" | "Cold Caller" | "Lead Gen";
 export type ProjectType = "App Development" | "AI Receptionist" | "Other";
 export type PaymentStatus = "Unpaid" | "Partial" | "Paid";
 export type UserRole = "admin" | "member";
+export type SalaryType = "base" | "commission" | "both";
 
 export interface AppUser {
   uid: string;
   email: string;
+  displayName?: string;
   role: UserRole;
+  allowedPages?: string[];
+  salaryType?: SalaryType;
+  baseSalary?: number;
+  commissionPercentage?: number;
   createdAt: Date;
 }
 
@@ -52,6 +58,7 @@ export interface Client {
   status: LeadStatus;
   projectValue?: number;
   upfrontPaid?: number;
+  submittedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,13 +79,16 @@ export interface Project {
   startDate?: string;   // ISO date string "YYYY-MM-DD"
   deadline?: string;    // ISO date string "YYYY-MM-DD"
   // Commission fields
-  coldCallerId?: string;
-  coldCallerName?: string;
-  coldCallerCommission?: number;
-  salesCloserId?: string;
-  salesCloserName?: string;
-  salesCloserCommission?: number;
-  totalCommission?: number;
+  coldCallerId?: string | null;
+  coldCallerName?: string | null;
+  coldCallerCommission?: number | null;
+  salesCloserId?: string | null;
+  salesCloserName?: string | null;
+  salesCloserCommission?: number | null;
+  leadGenId?: string | null;
+  leadGenName?: string | null;
+  leadGenCommission?: number | null;
+  totalCommission?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +98,7 @@ export interface Commission {
   name: string;
   role: EmployeeRole;
   commissionRate: number; // percentage e.g. 10 = 10%
+  email?: string;
   createdAt: Date;
   updatedAt: Date;
 }

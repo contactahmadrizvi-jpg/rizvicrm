@@ -155,10 +155,8 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Manage clients — auto-added when leads close, or add manually
-          </p>
+          <h1 className="text-2xl font-semibold text-[#111110] tracking-tight">Clients</h1>
+          <p className="text-sm text-[#858580] mt-1">Manage clients — auto-added when leads close, or add manually</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -184,23 +182,20 @@ export default function ClientsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-1.5 mb-6 p-1 bg-white border border-[#e8e8e4] rounded-lg w-fit">
         {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-              activeTab === tab
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/10"
-                : "bg-white text-slate-600 hover:text-slate-800 hover:bg-slate-50 border border-slate-200"
-            }`}
-          >
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className="relative px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-100"
+            style={{
+              background: activeTab === tab ? "#111110" : "transparent",
+              color: activeTab === tab ? "#ffffff" : "#858580",
+            }}>
             {tab}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full border ${
-              activeTab === tab 
-                ? "bg-white/20 text-white border-transparent" 
-                : "bg-slate-100 text-slate-500 border-slate-200"
-            }`}>
+            <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+              style={{
+                background: activeTab === tab ? "rgba(255,255,255,0.15)" : "#f4f4f2",
+                color: activeTab === tab ? "#ffffff" : "#858580",
+              }}>
               {counts[tab]}
             </span>
           </button>
@@ -215,83 +210,74 @@ export default function ClientsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-12 text-center shadow-sm">
-          <UserCheck size={36} className="text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-500 text-sm mb-4">
-            {dateRange.start && dateRange.end
-              ? `No clients in ${activeTab} status for selected date range`
-              : `No clients in ${activeTab} status`}
+        <div className="bg-white border border-[#e8e8e4] rounded-xl p-14 text-center shadow-card">
+          <UserCheck size={32} className="mx-auto mb-3" style={{ color: "#d0d0cc" }} />
+          <p className="text-sm font-medium text-[#4a4a48] mb-1">No clients in {activeTab}</p>
+          <p className="text-xs text-[#b0b0aa] mb-5">
+            {dateRange.start && dateRange.end ? "Try adjusting the date filter." : "Add a client manually or close a lead."}
           </p>
-          <Button size="sm" onClick={openAdd}>
-            <Plus size={14} className="mr-1" />
-            Add Client
-          </Button>
+          <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus size={13} />Add Client</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((client) => (
-            <Card key={client.id} className="relative">
+            <div key={client.id}
+              className="bg-white border border-[#e8e8e4] rounded-xl shadow-card hover:shadow-lift transition-shadow duration-200 p-5 flex flex-col gap-0">
+
+              {/* Top row */}
               <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-900 font-semibold text-sm truncate">{client.name}</p>
-                  <p className="text-slate-500 text-xs mt-0.5 truncate">{client.company}</p>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm"
+                    style={{ background: "#f4f4f2", border: "1px solid #e8e8e4", color: "#858580" }}>
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#111110] truncate leading-tight">{client.name}</p>
+                    <p className="text-xs text-[#858580] truncate mt-0.5">{client.company}</p>
+                  </div>
                 </div>
                 <Badge
-                  variant={
-                    client.status === "Closed"
-                      ? "closed"
-                      : client.status === "Meeting"
-                      ? "meeting"
-                      : "rejected"
-                  }
-                >
+                  variant={client.status === "Closed" ? "closed" : client.status === "Meeting" ? "meeting" : "rejected"}>
                   {client.status}
                 </Badge>
               </div>
-              <p className="text-slate-400 text-xs mb-3 truncate">{client.email}</p>
+
+              {/* Email */}
+              <p className="text-xs text-[#b0b0aa] mb-3 truncate">{client.email}</p>
+
+              {/* Financials */}
               {client.status === "Closed" && (
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-                    <p className="text-xs text-slate-500 mb-1">Project Value</p>
-                    <p className="text-emerald-700 font-bold text-sm">
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="rounded-lg p-3" style={{ background: "#f4f4f2", border: "1px solid #e8e8e4" }}>
+                    <p className="label-caps mb-1">Value</p>
+                    <p className="text-sm font-bold text-[#1a7f5a]">
                       ${Number(client.projectValue || 0).toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
-                    <p className="text-xs text-slate-500 mb-1">Upfront Paid</p>
-                    <p className="text-indigo-700 font-bold text-sm">
+                  <div className="rounded-lg p-3" style={{ background: "#f4f4f2", border: "1px solid #e8e8e4" }}>
+                    <p className="label-caps mb-1">Upfront</p>
+                    <p className="text-sm font-bold text-[#1a1a2e]">
                       ${Number(client.upfrontPaid || 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
               )}
-              <div className="flex gap-2 mt-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setViewingClient(client)}
-                  className="flex-1 gap-1"
-                >
-                  <Eye size={12} />
-                  View
+
+              {/* Actions */}
+              <div className="flex gap-2 mt-auto pt-1">
+                <Button variant="secondary" size="sm" onClick={() => setViewingClient(client)} className="flex-1 gap-1.5">
+                  <Eye size={12} />View
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => openEdit(client)}
-                  className="flex-1 gap-1"
-                >
-                  <Pencil size={12} />
-                  Edit
+                <Button variant="secondary" size="sm" onClick={() => openEdit(client)} className="flex-1 gap-1.5">
+                  <Pencil size={12} />Edit
                 </Button>
-                <button
-                  onClick={() => handleDelete(client.id)}
-                  className="p-2 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors border border-slate-200/60"
-                >
-                  <Trash2 size={14} />
+                <button onClick={() => handleDelete(client.id)}
+                  className="p-2 rounded-lg transition-colors text-[#b0b0aa] hover:text-[#c0392b] hover:bg-[#fdf1f0]"
+                  style={{ border: "1px solid #e8e8e4" }}>
+                  <Trash2 size={13} />
                 </button>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}

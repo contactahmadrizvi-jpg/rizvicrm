@@ -31,8 +31,9 @@ interface ProjectForm {
   features: string[];
   budget: string;
   upfrontPaid: string;
-  assignedEmployeeId: string;
-  assignedEmployeeType: "Sales Closer" | "Cold Caller" | "";
+  salesCloserId: string;
+  coldCallerId: string;
+  leadGenId: string;
   startDate: string;
   deadline: string;
 }
@@ -45,8 +46,9 @@ const emptyForm: ProjectForm = {
   features: [],
   budget: "",
   upfrontPaid: "",
-  assignedEmployeeId: "",
-  assignedEmployeeType: "",
+  salesCloserId: "",
+  coldCallerId: "",
+  leadGenId: "",
   startDate: "",
   deadline: "",
 };
@@ -122,12 +124,6 @@ export default function ProjectsPage() {
 
   const openEdit = (project: Project) => {
     setEditingProject(project);
-    const assignedEmployeeId = project.salesCloserId || project.coldCallerId || "";
-    const assignedEmployeeType = project.salesCloserId
-      ? "Sales Closer"
-      : project.coldCallerId
-      ? "Cold Caller"
-      : "";
     setForm({
       name: project.name,
       description: project.description,
@@ -136,8 +132,9 @@ export default function ProjectsPage() {
       features: project.features || [],
       budget: String(project.budget || ""),
       upfrontPaid: String(project.upfrontPaid || ""),
-      assignedEmployeeId,
-      assignedEmployeeType,
+      salesCloserId: project.salesCloserId || "",
+      coldCallerId: project.coldCallerId || "",
+      leadGenId: project.leadGenId || "",
       startDate: project.startDate || "",
       deadline: project.deadline || "",
     });
@@ -202,21 +199,26 @@ export default function ProjectsPage() {
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
     const client = closedClients.find((c) => c.id === form.clientId);
-    const assignedEmployee = commissions.find((c) => c.id === form.assignedEmployeeId);
-    
+
     const budget = parseFloat(form.budget) || 0;
     const upfrontPaid = parseFloat(form.upfrontPaid) || 0;
-    const employeeCommission = assignedEmployee ? (budget * assignedEmployee.commissionRate) / 100 : 0;
 
-    const isSalesCloser = form.assignedEmployeeType === "Sales Closer";
-    const isColdCaller = form.assignedEmployeeType === "Cold Caller";
+    // Look up each assigned employee independently
+    const sc = commissions.find((c) => c.id === form.salesCloserId);
+    const cc = commissions.find((c) => c.id === form.coldCallerId);
+    const lg = commissions.find((c) => c.id === form.leadGenId);
+
+    const scCommission = sc ? (budget * sc.commissionRate) / 100 : 0;
+    const ccCommission = cc ? (budget * cc.commissionRate) / 100 : 0;
+    const lgCommission = lg ? (budget * lg.commissionRate) / 100 : 0;
+    const totalCommission = scCommission + ccCommission + lgCommission;
 
     // Calculate payment status
     const totalPaid = editingProject ? editingProject.totalPaid || upfrontPaid : upfrontPaid;
     const remainingPayment = budget - totalPaid;
-    const paymentStatus = 
-      totalPaid >= budget ? "Paid" 
-      : totalPaid > 0 ? "Partial" 
+    const paymentStatus =
+      totalPaid >= budget ? "Paid"
+      : totalPaid > 0 ? "Partial"
       : "Unpaid";
 
     try {
@@ -232,13 +234,16 @@ export default function ProjectsPage() {
         totalPaid,
         remainingPayment,
         paymentStatus,
-        salesCloserId: isSalesCloser ? form.assignedEmployeeId : null,
-        salesCloserName: isSalesCloser ? assignedEmployee?.name || null : null,
-        salesCloserCommission: isSalesCloser ? employeeCommission : null,
-        coldCallerId: isColdCaller ? form.assignedEmployeeId : null,
-        coldCallerName: isColdCaller ? assignedEmployee?.name || null : null,
-        coldCallerCommission: isColdCaller ? employeeCommission : null,
-        totalCommission: employeeCommission || null,
+        salesCloserId: form.salesCloserId || null,
+        salesCloserName: sc?.name || null,
+        salesCloserCommission: scCommission || null,
+        coldCallerId: form.coldCallerId || null,
+        coldCallerName: cc?.name || null,
+        coldCallerCommission: ccCommission || null,
+        leadGenId: form.leadGenId || null,
+        leadGenName: lg?.name || null,
+        leadGenCommission: lgCommission || null,
+        totalCommission,
         startDate: form.startDate || null,
         deadline: form.deadline || null,
         updatedAt: serverTimestamp(),
@@ -313,6 +318,7 @@ export default function ProjectsPage() {
 
   const salesClosers = commissions.filter((c) => c.role === "Sales Closer");
   const coldCallers = commissions.filter((c) => c.role === "Cold Caller");
+  const leadGens = commissions.filter((c) => c.role === "Lead Gen");
 
   // Filter projects by date range
   const filteredProjects = projects.filter((project) => {
@@ -331,8 +337,8 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
-          <p className="text-slate-500 text-sm mt-1">Manage client projects and budgets</p>
+          <h1 className="text-2xl font-semibold text-[#111110] tracking-tight">Projects</h1>
+          <p className="text-sm text-[#858580] mt-1">Manage client projects and budgets</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -364,145 +370,152 @@ export default function ProjectsPage() {
           {[1, 2, 3].map((i) => <div key={i} className="skeleton h-48 rounded-2xl" />)}
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-white border border-slate-200/60 rounded-2xl p-12 text-center shadow-sm">
-          <FolderKanban size={40} className="text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-500 text-sm mb-4">
-            {dateRange.start && dateRange.end
-              ? "No projects in selected date range"
-              : "No projects yet"}
+        <div className="bg-white border border-[#e8e8e4] rounded-xl p-14 text-center shadow-card">
+          <FolderKanban size={32} className="mx-auto mb-3" style={{ color: "#d0d0cc" }} />
+          <p className="text-sm font-medium text-[#4a4a48] mb-1">No projects yet</p>
+          <p className="text-xs text-[#b0b0aa] mb-5">
+            {dateRange.start && dateRange.end ? "Try adjusting the date filter." : "Create your first project to get started."}
           </p>
-          {isAdmin && <Button onClick={openAdd} size="sm">Create First Project</Button>}
+          {isAdmin && <Button onClick={openAdd} size="sm" className="gap-1.5"><Plus size={13} />New Project</Button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredProjects.map((project) => (
-            <Card key={project.id}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-900 font-semibold text-sm truncate">{project.name}</p>
-                  <p className="text-slate-500 text-xs mt-0.5 truncate">{project.clientName}</p>
-                </div>
-                <span className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${typeColors[project.projectType]}`}>
-                  {project.projectType}
-                </span>
-              </div>
+          {filteredProjects.map((project) => {
+            const now = new Date();
+            const dl = project.deadline ? new Date(project.deadline) : null;
+            const diffDays = dl ? Math.ceil((dl.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+            const isOverdue = diffDays !== null && diffDays < 0;
+            const isSoon    = diffDays !== null && diffDays >= 0 && diffDays <= 7;
 
-              {project.description && (
-                <p className="text-slate-600 text-xs mb-3 line-clamp-2 leading-relaxed">{project.description}</p>
-              )}
+            const statusStyle =
+              project.paymentStatus === "Paid"
+                ? { bg: "#edf7f3", text: "#1a7f5a", border: "#a7f3d0" }
+                : project.paymentStatus === "Partial"
+                ? { bg: "#fef9ec", text: "#b45309", border: "#fde68a" }
+                : { bg: "#fdf1f0", text: "#c0392b", border: "#fecaca" };
 
-              {project.features && project.features.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {project.features.slice(0, 3).map((f, i) => (
-                    <span key={i} className="text-xs bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/60 font-medium">
-                      {f}
+            const typeStyle: Record<string, { bg: string; text: string; border: string }> = {
+              "App Development": { bg: "#eff0ff", text: "#4338ca", border: "#c7d2fe" },
+              "AI Receptionist": { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe" },
+              "Other":           { bg: "#f4f4f2", text: "#858580", border: "#e8e8e4" },
+            };
+            const ts = typeStyle[project.projectType] ?? typeStyle["Other"];
+
+            return (
+              <div key={project.id}
+                className="bg-white border border-[#e8e8e4] rounded-xl shadow-card hover:shadow-lift transition-shadow duration-200 flex flex-col">
+
+                {/* Card header */}
+                <div className="px-5 pt-5 pb-4">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[#111110] truncate leading-tight">{project.name}</p>
+                      <p className="text-xs text-[#858580] truncate mt-0.5">{project.clientName}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-md"
+                      style={{ background: ts.bg, color: ts.text, border: `1px solid ${ts.border}` }}>
+                      {project.projectType}
                     </span>
-                  ))}
-                  {project.features.length > 3 && (
-                    <span className="text-xs text-slate-400">+{project.features.length - 3} more</span>
-                  )}
-                </div>
-              )}
+                  </div>
 
-              {/* Deadline badge on card */}
-              {project.deadline && (() => {
-                const now = new Date();
-                const dl = new Date(project.deadline);
-                const diffDays = Math.ceil((dl.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                const isOverdue = diffDays < 0;
-                const isSoon = diffDays >= 0 && diffDays <= 7;
-                return (
-                  <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg mb-3 w-fit border ${
-                    isOverdue ? "bg-rose-50 text-rose-700 border-rose-200/50"
-                    : isSoon   ? "bg-amber-50 text-amber-700 border-amber-200/50"
-                                : "bg-slate-50 text-slate-500 border-slate-200/50"
-                  }`}>
-                    <Calendar size={11} />
-                    <span className="font-medium">
+                  {/* Description */}
+                  {project.description && (
+                    <p className="text-xs text-[#858580] line-clamp-2 leading-relaxed mb-3">{project.description}</p>
+                  )}
+
+                  {/* Features */}
+                  {project.features && project.features.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {project.features.slice(0, 3).map((f, i) => (
+                        <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded"
+                          style={{ background: "#f4f4f2", color: "#858580", border: "1px solid #e8e8e4" }}>
+                          {f}
+                        </span>
+                      ))}
+                      {project.features.length > 3 && (
+                        <span className="text-[10px] text-[#b0b0aa]">+{project.features.length - 3} more</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Deadline pill */}
+                  {dl && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold w-fit px-2.5 py-1 rounded-md mb-3"
+                      style={isOverdue
+                        ? { background: "#fdf1f0", color: "#c0392b", border: "1px solid #fecaca" }
+                        : isSoon
+                        ? { background: "#fef9ec", color: "#b45309", border: "1px solid #fde68a" }
+                        : { background: "#f4f4f2", color: "#858580", border: "1px solid #e8e8e4" }}>
+                      <Calendar size={10} />
                       {isOverdue
-                        ? `Overdue by ${Math.abs(diffDays)}d`
+                        ? `Overdue ${Math.abs(diffDays!)}d`
                         : isSoon
                         ? `Due in ${diffDays}d`
-                        : `Deadline: ${dl.toLocaleDateString()}`}
+                        : `Due ${dl.toLocaleDateString()}`}
+                    </div>
+                  )}
+
+                  {/* Payment status badge */}
+                  {isAdmin && (
+                    <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded mb-3"
+                      style={{ background: statusStyle.bg, color: statusStyle.text, border: `1px solid ${statusStyle.border}` }}>
+                      {project.paymentStatus || "Unpaid"}
                     </span>
-                  </div>
-                );
-              })()}
-
-              {/* Financial grid — admin only */}
-              {isAdmin && (
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-2.5">
-                    <p className="text-[10px] text-slate-500 mb-0.5 font-semibold">Budget</p>
-                    <p className="text-emerald-700 font-bold text-sm">${Number(project.budget || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5">
-                    <p className="text-[10px] text-slate-500 mb-0.5 font-semibold">Paid</p>
-                    <p className="text-blue-700 font-bold text-sm">${Number(project.totalPaid || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-2.5">
-                    <p className="text-[10px] text-slate-500 mb-0.5 font-semibold">Remaining</p>
-                    <p className="text-orange-700 font-bold text-sm">${Number(project.remainingPayment || 0).toLocaleString()}</p>
-                  </div>
+                  )}
                 </div>
-              )}
 
-              {/* Payment status — admin only */}
-              {isAdmin && (
-                <div className="mb-3">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                      project.paymentStatus === "Paid"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/50"
-                        : project.paymentStatus === "Partial"
-                        ? "bg-amber-50 text-amber-700 border-amber-200/50"
-                        : "bg-rose-50 text-rose-700 border-rose-200/50"
-                    }`}
-                  >
-                    {project.paymentStatus || "Unpaid"}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex gap-2 mb-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setViewingProject(project)}
-                  className="flex-1 gap-1"
-                >
-                  <Eye size={12} />
-                  View
-                </Button>
+                {/* Financials — admin only */}
                 {isAdmin && (
-                  <>
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(project)} className="flex-1 gap-1">
-                      <Pencil size={12} />
-                      Edit
-                    </Button>
-                    <button
-                      onClick={() => handleDelete(project.id)}
-                      className="p-2 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors border border-slate-200/60"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </>
+                  <div className="grid grid-cols-3 divide-x divide-[#f4f4f2] border-t border-[#f4f4f2]">
+                    <div className="px-4 py-3">
+                      <p className="label-caps mb-1">Budget</p>
+                      <p className="text-sm font-bold text-[#111110]">${Number(project.budget || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="label-caps mb-1">Paid</p>
+                      <p className="text-sm font-bold text-[#1a7f5a]">${Number(project.totalPaid || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="label-caps mb-1">Left</p>
+                      <p className="text-sm font-bold text-[#b45309]">${Number(project.remainingPayment || 0).toLocaleString()}</p>
+                    </div>
+                  </div>
                 )}
-              </div>
 
-              {/* Payment buttons — admin only */}
-              {isAdmin && project.paymentStatus !== "Paid" && (
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => openPaymentModal(project)} className="flex-1 text-xs">
-                    Update Payment
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => handleMarkAsPaid(project)} className="flex-1 text-xs">
-                    Mark as Paid
-                  </Button>
+                {/* Actions */}
+                <div className="px-5 py-4 border-t border-[#f4f4f2] space-y-2 mt-auto">
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setViewingProject(project)} className="flex-1 gap-1.5">
+                      <Eye size={12} />View
+                    </Button>
+                    {isAdmin && (
+                      <>
+                        <Button variant="secondary" size="sm" onClick={() => openEdit(project)} className="flex-1 gap-1.5">
+                          <Pencil size={12} />Edit
+                        </Button>
+                        <button onClick={() => handleDelete(project.id)}
+                          className="p-2 rounded-lg transition-colors text-[#b0b0aa] hover:text-[#c0392b] hover:bg-[#fdf1f0]"
+                          style={{ border: "1px solid #e8e8e4" }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {isAdmin && project.paymentStatus !== "Paid" && (
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => openPaymentModal(project)} className="flex-1 text-xs">
+                        Update Payment
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => handleMarkAsPaid(project)} className="flex-1 text-xs">
+                        Mark Paid
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -683,111 +696,129 @@ export default function ProjectsPage() {
             </div>
           </div>
 
-          {/* Commission Assignment - Single Employee Only */}
+          {/* Commission Assignment - Multi Employee */}
           <div className="border-t border-slate-100 pt-4 mt-2">
             <h4 className="text-slate-800 font-semibold mb-3 text-sm">
-              Commission Assignment (Select One)
+              Commission Assignment
             </h4>
             <div className="space-y-3">
-              {/* Employee Type Selection */}
+              {/* Sales Closer */}
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-1">
-                  Employee Type
+                  Sales Closer
                 </label>
                 <select
-                  value={form.assignedEmployeeType}
+                  value={form.salesCloserId}
                   disabled={saving}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      assignedEmployeeType: e.target.value as any,
-                      assignedEmployeeId: "",
-                    })
-                  }
+                  onChange={(e) => setForm({ ...form, salesCloserId: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 >
                   <option value="">None</option>
-                  <option value="Sales Closer">Sales Closer</option>
-                  <option value="Cold Caller">Cold Caller</option>
+                  {salesClosers.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.commissionRate}%)
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              {/* Employee Selection */}
-              {form.assignedEmployeeType && (
-                <div>
-                  <label className="text-sm font-medium text-slate-700 block mb-1">
-                    Select {form.assignedEmployeeType}
-                  </label>
-                  <select
-                    value={form.assignedEmployeeId}
-                    disabled={saving}
-                    onChange={(e) => setForm({ ...form, assignedEmployeeId: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  >
-                    <option value="">Select employee...</option>
-                    {(form.assignedEmployeeType === "Sales Closer"
-                      ? salesClosers
-                      : coldCallers
-                    ).map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.commissionRate}%)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* Cold Caller */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">
+                  Cold Caller
+                </label>
+                <select
+                  value={form.coldCallerId}
+                  disabled={saving}
+                  onChange={(e) => setForm({ ...form, coldCallerId: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  <option value="">None</option>
+                  {coldCallers.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.commissionRate}%)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lead Gen */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">
+                  Lead Gen
+                </label>
+                <select
+                  value={form.leadGenId}
+                  disabled={saving}
+                  onChange={(e) => setForm({ ...form, leadGenId: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  <option value="">None</option>
+                  {leadGens.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.commissionRate}%)
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {/* Commission Preview */}
-              {form.assignedEmployeeId && form.budget && (
-                <div
-                  className={`${
-                    form.assignedEmployeeType === "Sales Closer"
-                      ? "bg-indigo-50 border-indigo-100"
-                      : "bg-amber-50 border-amber-100"
-                  } border rounded-xl p-4 shadow-sm`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-slate-500 font-medium">Employee</p>
-                    <p
-                      className={`text-sm font-semibold ${
-                        form.assignedEmployeeType === "Sales Closer"
-                          ? "text-indigo-700"
-                          : "text-amber-700"
-                      }`}
-                    >
-                      {
-                        (form.assignedEmployeeType === "Sales Closer"
-                          ? salesClosers
-                          : coldCallers
-                        ).find((e) => e.id === form.assignedEmployeeId)?.name
-                      }
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-slate-500 font-medium">Commission Rate</p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {
-                        (form.assignedEmployeeType === "Sales Closer"
-                          ? salesClosers
-                          : coldCallers
-                        ).find((e) => e.id === form.assignedEmployeeId)?.commissionRate
-                      }
-                      %
-                    </p>
-                  </div>
+              {(form.salesCloserId || form.coldCallerId || form.leadGenId) && form.budget && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm space-y-2">
+                  {form.salesCloserId && (() => {
+                    const emp = salesClosers.find((e) => e.id === form.salesCloserId);
+                    const comm = emp ? (parseFloat(form.budget) * emp.commissionRate) / 100 : 0;
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                          <p className="text-xs text-slate-500 font-medium">Sales Closer</p>
+                          <p className="text-xs text-slate-700 font-semibold">{emp?.name}</p>
+                        </div>
+                        <p className="text-indigo-700 font-bold text-sm">${comm.toLocaleString()}</p>
+                      </div>
+                    );
+                  })()}
+                  {form.coldCallerId && (() => {
+                    const emp = coldCallers.find((e) => e.id === form.coldCallerId);
+                    const comm = emp ? (parseFloat(form.budget) * emp.commissionRate) / 100 : 0;
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          <p className="text-xs text-slate-500 font-medium">Cold Caller</p>
+                          <p className="text-xs text-slate-700 font-semibold">{emp?.name}</p>
+                        </div>
+                        <p className="text-amber-700 font-bold text-sm">${comm.toLocaleString()}</p>
+                      </div>
+                    );
+                  })()}
+                  {form.leadGenId && (() => {
+                    const emp = leadGens.find((e) => e.id === form.leadGenId);
+                    const comm = emp ? (parseFloat(form.budget) * emp.commissionRate) / 100 : 0;
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-teal-500" />
+                          <p className="text-xs text-slate-500 font-medium">Lead Gen</p>
+                          <p className="text-xs text-slate-700 font-semibold">{emp?.name}</p>
+                        </div>
+                        <p className="text-teal-700 font-bold text-sm">${comm.toLocaleString()}</p>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
                     <p className="text-sm font-semibold text-slate-800">Total Commission</p>
                     <p className="text-rose-600 font-bold text-lg">
-                      $
-                      {(
-                        (parseFloat(form.budget) *
-                          ((form.assignedEmployeeType === "Sales Closer"
-                            ? salesClosers
-                            : coldCallers
-                          ).find((e) => e.id === form.assignedEmployeeId)?.commissionRate ||
-                            0)) /
-                        100
-                      ).toLocaleString()}
+                      ${(() => {
+                        const budgetVal = parseFloat(form.budget) || 0;
+                        const total = [
+                          salesClosers.find((e) => e.id === form.salesCloserId),
+                          coldCallers.find((e) => e.id === form.coldCallerId),
+                          leadGens.find((e) => e.id === form.leadGenId),
+                        ].reduce((sum, emp) => sum + (emp ? (budgetVal * emp.commissionRate) / 100 : 0), 0);
+                        return total.toLocaleString();
+                      })()}
                     </p>
                   </div>
                 </div>

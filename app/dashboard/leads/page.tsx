@@ -13,7 +13,7 @@ import {
   arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Lead, LeadStatus, FollowUpNote } from "@/lib/types";
+import { Lead, LeadStatus, FollowUpNote, Commission } from "@/lib/types";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -70,6 +70,7 @@ export default function LeadsPage() {
   const { appUser } = useAuth();
   const [selectedSubmitter, setSelectedSubmitter] = useState<string>("All");
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<LeadStatus>("Initial Email");
 
@@ -122,7 +123,12 @@ export default function LeadsPage() {
       setLeads(data);
       setLoading(false);
     });
-    return unsub;
+
+    const unsubCom = onSnapshot(collection(db, "commissions"), (snap) => {
+      setCommissions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Commission)));
+    });
+
+    return () => { unsub(); unsubCom(); };
   }, []);
 
   const openAdd = () => {
@@ -220,8 +226,57 @@ export default function LeadsPage() {
         company: closingLead.company, status: "Closed", projectValue: pv, upfrontPaid: up || 0,
         serviceType: closingLead.serviceType || "",
         phoneNumber: closingLead.phoneNumber || "",
+        submittedBy: closingLead.submittedBy || null,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
+
+      // Auto-create project with commission assignment
+      // Find the commission employee who submitted this lead
+      const commissionEmployee = commissions.find(
+        (c) => c.email === closingLead.submittedBy
+      );
+
+      const projectPayload: any = {
+        name: `${closingLead.company} — ${closingLead.serviceType || "Project"}`,
+        description: `Auto-generated from closed lead`,
+        clientId: closingLead.id,
+        clientName: closingLead.name,
+        projectType: closingLead.serviceType === "AI Receptionist" ? "AI Receptionist" : "App Development",
+        features: [],
+        budget: pv,
+        upfrontPaid: up || 0,
+        totalPaid: up || 0,
+        remainingPayment: pv - (up || 0),
+        paymentStatus: (up || 0) >= pv ? "Paid" : (up || 0) > 0 ? "Partial" : "Unpaid",
+        salesCloserId: null,
+        salesCloserName: null,
+        salesCloserCommission: null,
+        coldCallerId: null,
+        coldCallerName: null,
+        coldCallerCommission: null,
+        leadGenId: null,
+        leadGenName: null,
+        leadGenCommission: null,
+        totalCommission: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      if (commissionEmployee) {
+        const empCommission = (pv * commissionEmployee.commissionRate) / 100;
+        const roleKey =
+          commissionEmployee.role === "Sales Closer" ? "salesCloser"
+          : commissionEmployee.role === "Cold Caller" ? "coldCaller"
+          : "leadGen";
+
+        projectPayload[`${roleKey}Id`] = commissionEmployee.id;
+        projectPayload[`${roleKey}Name`] = commissionEmployee.name;
+        projectPayload[`${roleKey}Commission`] = empCommission;
+        projectPayload.totalCommission = empCommission;
+      }
+
+      await addDoc(collection(db, "projects"), projectPayload);
+
       setCloseModal(false);
       setActiveTab("Closed");
     } finally {

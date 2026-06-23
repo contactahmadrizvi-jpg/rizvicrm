@@ -116,7 +116,7 @@ export function ProjectDetailsModal({
         )}
 
         {/* Commission Breakdown */}
-        {(project.coldCallerId || project.salesCloserId) && (
+        {(project.coldCallerId || project.salesCloserId || project.leadGenId) && (
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
             <h4 className="text-slate-800 font-semibold mb-4 flex items-center gap-2">
               <Users size={18} className="text-amber-600" />
@@ -160,6 +160,27 @@ export function ProjectDetailsModal({
                     <div className="text-right">
                       <p className="text-amber-700 font-bold text-lg">
                         ${Number(project.coldCallerCommission || 0).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {project.leadGenId && (
+                <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-teal-100 rounded-lg">
+                        <Percent size={16} className="text-teal-600" />
+                      </div>
+                      <div>
+                        <p className="text-teal-700 font-semibold text-sm">Lead Gen</p>
+                        <p className="text-slate-500 text-xs mt-0.5">{project.leadGenName}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-teal-700 font-bold text-lg">
+                        ${Number(project.leadGenCommission || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>

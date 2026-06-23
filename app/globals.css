@@ -1,77 +1,137 @@
+/* ─── Google Fonts ─────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --bg-primary: #F8FAFC;
-  --bg-card: #FFFFFF;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --border-color: #E2E8F0;
+  /* Brand */
+  --accent:        #1a1a2e;
+  --accent-mid:    #2d2d5e;
+  --gold:          #c9a84c;
+  --gold-light:    #f0d896;
+  --gold-muted:    #7a6530;
+
+  /* Surfaces */
+  --bg:            #f7f7f5;
+  --surface:       #ffffff;
+  --surface-2:     #f4f4f2;
+  --surface-raised: #fafafa;
+
+  /* Borders */
+  --border:        #e8e8e4;
+  --border-strong: #d0d0cc;
+
+  /* Text */
+  --text-1:        #111110;
+  --text-2:        #4a4a48;
+  --text-3:        #858580;
+  --text-4:        #b0b0aa;
+
+  /* Status */
+  --green:         #1a7f5a;
+  --green-bg:      #edf7f3;
+  --red:           #c0392b;
+  --red-bg:        #fdf1f0;
+  --amber:         #b45309;
+  --amber-bg:      #fef9ec;
+  --blue:          #1d4ed8;
+  --blue-bg:       #eff6ff;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+html { font-size: 15px; }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-1);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #F1F5F9;
-}
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
-}
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--surface-2); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
 
-/* Skeleton shimmer */
+/* ─── Skeleton ──────────────────────────────────────────────────────────── */
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.6s infinite;
+  border-radius: 6px;
+}
+
+/* ─── Date picker ───────────────────────────────────────────────────────── */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 0.9; }
+
+/* ─── Tables ────────────────────────────────────────────────────────────── */
+table { border-collapse: separate; border-spacing: 0; }
+
+/* ─── Network banner ────────────────────────────────────────────────────── */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeInDown 0.22s ease-out forwards; }
+
+/* ─── Premium utility classes ───────────────────────────────────────────── */
+.serif { font-family: 'Instrument Serif', Georgia, serif; }
+
+/* Stat number style */
+.stat-num {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+/* Label caps */
+.label-caps {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Divider */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* Premium card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
 }
 
-/* Input custom selections */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  filter: opacity(0.6) grayscale(100%);
-  transition: opacity 0.15s ease;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  filter: opacity(0.9) drop-shadow(0 0 2px rgba(99, 102, 241, 0.2));
-}
-
-/* Table styles */
-table {
-  border-collapse: separate;
-  border-spacing: 0;
+/* Thin rule accent — used on section headings */
+.rule-accent {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background: var(--gold);
+  border-radius: 1px;
+  vertical-align: middle;
+  margin-right: 10px;
 }

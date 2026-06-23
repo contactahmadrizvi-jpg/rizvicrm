@@ -9,21 +9,22 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ label, error, className = "", ...props }: InputProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase">{label}</label>
       )}
       <input
         {...props}
         className={`
-          w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5
-          text-slate-900 placeholder-slate-400 text-sm
-          focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500
-          transition-all disabled:bg-slate-50 disabled:text-slate-400
-          ${error ? "border-red-500 focus:ring-red-500/20 focus:border-red-500" : ""} ${className}
+          w-full bg-white border border-[#e8e8e4] rounded-lg px-3 py-2.5
+          text-[#111110] placeholder-[#b0b0aa] text-sm font-normal
+          focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/10 focus:border-[#1a1a2e]
+          transition-all duration-150 disabled:bg-[#f4f4f2] disabled:text-[#b0b0aa]
+          ${error ? "border-[#c0392b] focus:ring-[#c0392b]/10 focus:border-[#c0392b]" : ""}
+          ${className}
         `}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-[#c0392b] font-medium">{error}</p>}
     </div>
   );
 }
@@ -35,21 +36,22 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
 
 export function Textarea({ label, error, className = "", ...props }: TextareaProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase">{label}</label>
       )}
       <textarea
         {...props}
         className={`
-          w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5
-          text-slate-900 placeholder-slate-400 text-sm
-          focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500
-          transition-all resize-none disabled:bg-slate-50 disabled:text-slate-400
-          ${error ? "border-red-500 focus:ring-red-500/20 focus:border-red-500" : ""} ${className}
+          w-full bg-white border border-[#e8e8e4] rounded-lg px-3 py-2.5
+          text-[#111110] placeholder-[#b0b0aa] text-sm font-normal
+          focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/10 focus:border-[#1a1a2e]
+          transition-all duration-150 resize-none disabled:bg-[#f4f4f2] disabled:text-[#b0b0aa]
+          ${error ? "border-[#c0392b] focus:ring-[#c0392b]/10 focus:border-[#c0392b]" : ""}
+          ${className}
         `}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-[#c0392b] font-medium">{error}</p>}
     </div>
   );
 }
@@ -62,27 +64,26 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 
 export function Select({ label, error, options, className = "", ...props }: SelectProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label className="text-xs font-semibold text-[#4a4a48] tracking-wide uppercase">{label}</label>
       )}
       <select
         {...props}
         className={`
-          w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5
-          text-slate-900 text-sm
-          focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500
-          transition-all disabled:bg-slate-50 disabled:text-slate-400
-          ${error ? "border-red-500 focus:ring-red-500/20 focus:border-red-500" : ""} ${className}
+          w-full bg-white border border-[#e8e8e4] rounded-lg px-3 py-2.5
+          text-[#111110] text-sm font-normal
+          focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/10 focus:border-[#1a1a2e]
+          transition-all duration-150 disabled:bg-[#f4f4f2] disabled:text-[#b0b0aa]
+          ${error ? "border-[#c0392b]" : ""}
+          ${className}
         `}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value} className="bg-white text-slate-900">
-            {opt.label}
-          </option>
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-[#c0392b] font-medium">{error}</p>}
     </div>
   );
 }

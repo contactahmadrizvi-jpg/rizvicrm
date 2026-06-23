@@ -11,19 +11,11 @@ interface ModalProps {
   size?: "sm" | "md" | "lg";
 }
 
-const sizeMap = {
-  sm: "max-w-md",
-  md: "max-w-lg",
-  lg: "max-w-2xl",
-};
+const sizeMap = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl" };
 
 export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalProps) {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = isOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
@@ -31,25 +23,19 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div
-        className={`relative w-full ${sizeMap[size]} bg-white border border-slate-200/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-10 max-h-[90vh] overflow-y-auto`}
-      >
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+      <div className="absolute inset-0 bg-[#111110]/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className={`relative w-full ${sizeMap[size]} bg-white border border-[#e8e8e4] rounded-xl shadow-modal z-10 max-h-[90vh] overflow-y-auto`}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[#e8e8e4]">
+          <h2 className="text-base font-semibold text-[#111110] tracking-tight">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[#f4f4f2] text-[#858580] hover:text-[#111110] transition-colors"
           >
-            <X size={18} />
+            <X size={15} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );

@@ -2,24 +2,11 @@
 
 import { ReactNode } from "react";
 
-interface CardProps {
-  children: ReactNode;
-  className?: string;
-  glass?: boolean;
-}
+interface CardProps { children: ReactNode; className?: string; }
 
-export function Card({ children, className = "", glass = false }: CardProps) {
+export function Card({ children, className = "" }: CardProps) {
   return (
-    <div
-      className={`
-        rounded-2xl border border-slate-200/60 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_20px_-4px_rgba(0,0,0,0.01)]
-        ${glass
-          ? "bg-white/80 backdrop-blur-md"
-          : "bg-white"
-        }
-        ${className}
-      `}
-    >
+    <div className={`bg-white border border-[#e8e8e4] rounded-xl shadow-card ${className}`}>
       {children}
     </div>
   );
@@ -35,58 +22,44 @@ interface KPICardProps {
   loading?: boolean;
 }
 
-const colorMap = {
-  indigo: "text-indigo-600 bg-indigo-50 border-indigo-100",
-  green: "text-emerald-600 bg-emerald-50 border-emerald-100",
-  red: "text-rose-600 bg-rose-50 border-rose-100",
-  yellow: "text-amber-600 bg-amber-50 border-amber-100",
-  blue: "text-blue-600 bg-blue-50 border-blue-100",
-  orange: "text-orange-600 bg-orange-50 border-orange-100",
+const iconBg: Record<string, string> = {
+  indigo: "bg-[#eff0ff] text-[#4338ca] border-[#c7d2fe]",
+  green:  "bg-[#edf7f3] text-[#1a7f5a] border-[#a7f3d0]",
+  red:    "bg-[#fdf1f0] text-[#c0392b] border-[#fecaca]",
+  yellow: "bg-[#fef9ec] text-[#b45309] border-[#fde68a]",
+  blue:   "bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]",
+  orange: "bg-[#fff7ed] text-[#c2410c] border-[#fed7aa]",
 };
 
-const textColorMap = {
-  indigo: "text-indigo-600",
-  green: "text-emerald-600",
-  red: "text-rose-600",
-  yellow: "text-amber-600",
-  blue: "text-blue-600",
-  orange: "text-orange-600",
+const valColor: Record<string, string> = {
+  indigo: "text-[#4338ca]", green: "text-[#1a7f5a]", red: "text-[#c0392b]",
+  yellow: "text-[#b45309]", blue: "text-[#1d4ed8]",  orange: "text-[#c2410c]",
 };
 
-export function KPICard({
-  title,
-  value,
-  subtitle,
-  subtitleValue,
-  icon,
-  color = "indigo",
-  loading = false,
-}: KPICardProps) {
+export function KPICard({ title, value, subtitle, subtitleValue, icon, color = "indigo", loading = false }: KPICardProps) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_20px_-4px_rgba(0,0,0,0.01)]">
-        <div className="skeleton h-4 w-24 mb-4" />
-        <div className="skeleton h-8 w-32 mb-2" />
-        <div className="skeleton h-4 w-20" />
+      <div className="bg-white border border-[#e8e8e4] rounded-xl p-5 shadow-card">
+        <div className="skeleton h-3 w-24 mb-4" />
+        <div className="skeleton h-7 w-28 mb-2" />
+        <div className="skeleton h-3 w-20" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_8px_20px_-4px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-200">
-      <div className="flex items-start justify-between mb-4">
-        <p className="text-sm font-medium text-slate-500">{title}</p>
+    <div className="bg-white border border-[#e8e8e4] rounded-xl p-5 shadow-card hover:shadow-lift transition-shadow duration-200 group">
+      <div className="flex items-start justify-between mb-3">
+        <p className="label-caps">{title}</p>
         {icon && (
-          <div className={`p-2 rounded-xl border ${colorMap[color]}`}>{icon}</div>
+          <div className={`p-2 rounded-lg border text-sm ${iconBg[color]}`}>{icon}</div>
         )}
       </div>
-      <p className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">{value}</p>
+      <p className={`stat-num mb-1.5 text-[#111110]`}>{value}</p>
       {subtitle && subtitleValue !== undefined && (
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs text-slate-400">{subtitle}</span>
-          <span className={`text-sm font-semibold ${textColorMap[color]}`}>
-            {subtitleValue}
-          </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-[#858580]">{subtitle}</span>
+          <span className={`text-xs font-semibold ${valColor[color]}`}>{subtitleValue}</span>
         </div>
       )}
     </div>
